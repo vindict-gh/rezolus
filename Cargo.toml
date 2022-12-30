@@ -61,6 +61,7 @@ bpf_v0_21_0 = ["bpf", "bcc/v0_21_0"]
 bpf_v0_22_0 = ["bpf", "bcc/v0_22_0"]
 bpf_v0_23_0 = ["bpf", "bcc/v0_23_0"]
 push_kafka = ["kafka"]
+zfs = []
 
 [profile.bench]
 debug = true
