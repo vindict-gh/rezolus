@@ -93,7 +93,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Tcp::spawn(common.clone());
     Udp::spawn(common.clone());
     Usercall::spawn(common.clone());
+    #[cfg(feature = "zfs")]
+    {
+        Zfs::spawn(common.clone());
+        ZVol::spawn(common.clone());
+    }
     Xfs::spawn(common);
+
 
     #[cfg(feature = "push_kafka")]
     {

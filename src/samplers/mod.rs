@@ -33,6 +33,8 @@ pub mod tcp;
 pub mod udp;
 pub mod usercall;
 pub mod xfs;
+pub mod zfs;
+pub mod zvol;
 
 pub use cpu::Cpu;
 pub use disk::Disk;
@@ -54,6 +56,8 @@ pub use tcp::Tcp;
 pub use udp::Udp;
 pub use usercall::Usercall;
 pub use xfs::Xfs;
+pub use zfs::Zfs;
+pub use zvol::ZVol;
 
 #[async_trait]
 pub trait Sampler: Sized + Send {
