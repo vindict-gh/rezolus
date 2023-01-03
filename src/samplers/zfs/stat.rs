@@ -48,7 +48,7 @@ impl ZfsStatistic {
 
     #[cfg(feature = "bpf")]
     pub fn bpf_probes_required(self) -> Vec<Probe> {
-        let mut func_prefix: Option<str> = None;
+        let mut func_prefix: Option<String> = None;
         if let Ok(funcs) = bpf.get_kprobe_functions("zpl_iter") {
             if funcs.len() > 0 {
                 func_prefix = Some("zpl_iter");
@@ -120,7 +120,7 @@ impl ZfsStatistic {
             binary_path: None,
             sub_system: None,
         };
-        let zpl_sync_ret_probe = Probe {
+        let zpl_fsync_ret_probe = Probe {
             name: "zpl_fsync".to_string(),
             handler: "trace_fsync_return".to_string(),
             probe_type: ProbeType::Kernel,
@@ -134,7 +134,7 @@ impl ZfsStatistic {
             Self::ReadLatency => vec![zpl_read_probe, zpl_read_ret_probe],
             Self::WriteLatency => vec![zpl_write_probe, zpl_write_ret_probe],
             Self::OpenLatency => vec![zpl_open_probe, zpl_open_ret_probe],
-            Self::FsyncLatency => vec![zpl_sync_probe, zpl_sync_ret_probe],
+            Self::FsyncLatency => vec![zpl_fsync_probe, zpl_fsync_ret_probe],
         }
     }
 }
