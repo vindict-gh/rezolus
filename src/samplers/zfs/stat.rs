@@ -65,7 +65,7 @@ impl ZfsStatistic {
 
         // define the unique probes below.
         let zpl_read_probe = Probe {
-            name: format!("{}_read", func_prefix).to_string(),
+            name: format!("{}_read", func_prefix.unwrap()).to_string(),
             handler: "trace_entry".to_string(),
             probe_type: ProbeType::Kernel,
             probe_location: ProbeLocation::Entry,
@@ -73,7 +73,7 @@ impl ZfsStatistic {
             sub_system: None,
         };
         let zpl_write_probe = Probe {
-            name: format!("{}_write", func_prefix).to_string(),
+            name: format!("{}_write", func_prefix.unwrap()).to_string(),
             handler: "trace_entry".to_string(),
             probe_type: ProbeType::Kernel,
             probe_location: ProbeLocation::Entry,
@@ -97,7 +97,7 @@ impl ZfsStatistic {
             sub_system: None,
         };
         let zpl_read_ret_probe = Probe {
-            name: format!("{}_read", func_prefix).to_string(),
+            name: format!("{}_read", func_prefix.unwrap()).to_string(),
             handler: "trace_read_return".to_string(),
             probe_type: ProbeType::Kernel,
             probe_location: ProbeLocation::Return,
@@ -105,7 +105,7 @@ impl ZfsStatistic {
             sub_system: None,
         };
         let zpl_write_ret_probe = Probe {
-            name: format!("{}_write", func_prefix).to_string(),
+            name: format!("{}_write", func_prefix.unwrap()).to_string(),
             handler: "trace_write_return".to_string(),
             probe_type: ProbeType::Kernel,
             probe_location: ProbeLocation::Return,
