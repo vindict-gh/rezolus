@@ -48,22 +48,23 @@ impl ZfsStatistic {
 
     #[cfg(feature = "bpf")]
     pub fn bpf_probes_required(self) -> Vec<Probe> {
-        let mut func_prefix: Option<String> = None;
-        if let Ok(funcs) = bpf.get_kprobe_functions("zpl_iter") {
-            if funcs.len() > 0 {
-                func_prefix = Some("zpl_iter");
-            }
+        // FIXME: There may be a more Rust-ic way to do this
+        let mut func_prefix: Option<&str> = None;
+        let mut sym: Option<String> = symbol_lookup("zpl_iter_read");
+        if !sym.is_none() {
+            func_prefix = Some("zpl_iter");
         }
-        if let Ok(funcs) = bpf.get_kprobe_functions("zpl_aio") {
-            if funcs.len() > 0 {
-                func_prefix = Some("zpl_aio");
-            }
+
+        sym = symbol_lookup("zpl_aio_read");
+        if !sym.is_none() {
+            func_prefix = Some("zpl_aio");
         }
+
         if func_prefix.is_none() {
             func_prefix = Some("zpl")
         }
 
-        // define the unique probes below.
+        // Define the unique probes below.
         let zpl_read_probe = Probe {
             name: format!("{}_read", func_prefix.unwrap()).to_string(),
             handler: "trace_entry".to_string(),
