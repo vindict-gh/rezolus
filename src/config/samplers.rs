@@ -24,6 +24,8 @@ use samplers::tcp::TcpConfig;
 use samplers::udp::UdpConfig;
 use samplers::usercall::UsercallConfig;
 use samplers::xfs::XfsConfig;
+use samplers::zfs::ZfsConfig;
+use samplers::zvol::ZVolConfig;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -68,6 +70,10 @@ pub struct Samplers {
     usercall: UsercallConfig,
     #[serde(default)]
     xfs: XfsConfig,
+    #[serde(default)]
+    zfs: ZfsConfig,
+    #[serde(default)]
+    zvol: ZVolConfig
 }
 
 impl Samplers {
@@ -150,4 +156,8 @@ impl Samplers {
     pub fn xfs(&self) -> &XfsConfig {
         &self.xfs
     }
+
+    pub fn zfs(&self) -> &ZfsConfig { &self.zfs }
+
+    pub fn zvol(&self) -> &ZVolConfig { &self.zvol }
 }
