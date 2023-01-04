@@ -41,7 +41,7 @@ fn default_statistics() -> Vec<ZVolStatistic> {
 }
 
 impl SamplerConfig for ZVolConfig {
-    type Statistic = ZVolConfig;
+    type Statistic = ZVolStatistic;
 
     fn bpf(&self) -> bool {
         self.bpf

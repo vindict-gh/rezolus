@@ -41,7 +41,7 @@ fn default_statistics() -> Vec<ZfsStatistic> {
 }
 
 impl SamplerConfig for ZfsConfig {
-    type Statistic = ZfsConfig;
+    type Statistic = ZfsStatistic;
 
     fn bpf(&self) -> bool {
         self.bpf
