@@ -40,10 +40,7 @@ int trace_entry(struct pt_regs *ctx, zv_request_t *zvr)
     u64 ts = bpf_ktime_get_ns();
     struct hash_value value = {.ts = ts};
 
-    err = BPF_CORE_READ_INTO(&value.zvol_name, zvr, zv.zvol_name);
-    if (err){
-        return 0;
-    }
+    bpf_probe_read_kernel(&value.zvol_name, sizeof(value.zvol_name), zvr->zv.zvol_name);
 
     start.update(&tid, &value);
     return 0;
@@ -64,7 +61,7 @@ static int trace_return(struct pt_regs *ctx, const int op)
     }
 
     // calculate latency in microseconds
-    u64 delta = (bpf_ktime_get_ns() - start_value->name) / 1000;
+    u64 delta = (bpf_ktime_get_ns() - start_value->ts) / 1000;
 
     struct dist_key key = {};
     __builtin_memcpy(&key.zvol_name, start_value->zvol_name, sizeof(key.zvol_name));
