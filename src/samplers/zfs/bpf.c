@@ -35,9 +35,8 @@ int trace_entry(struct pt_regs *ctx)
     return 0;
 }
 
-static int trace_return(struct pt_regs *ctx, const char *op)
+static int trace_return(struct pt_regs *ctx, const int op)
 {
-    u64 *tsp;
     u64 pid_tgid = bpf_get_current_pid_tgid();
     u32 pid = pid_tgid >> 32;
     u32 tid = (u32)pid_tgid;
