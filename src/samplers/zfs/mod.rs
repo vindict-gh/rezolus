@@ -178,6 +178,7 @@ impl Zfs {
                     if let Ok(mut table) = (*bpf).inner.table(statistic.bpf_table().unwrap()) {
                         for (&value, &count) in &map_from_table(&mut table) {
                             if count > 0 {
+                                debug!("registering metrics {} {}", count, statistic.name());
                                 let _ = self.metrics().record_bucket(
                                     statistic,
                                     time,
