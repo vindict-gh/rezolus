@@ -186,7 +186,7 @@ impl Zfs {
                                     count,
                                 );
                             } else {
-                                debug!("ignoring 0-filled statistic {} in ZFS module",
+                                debug!("ignoring 0-filled statistic {}",
                                     statistic.name());
                             }
                         }
