@@ -185,9 +185,6 @@ impl Zfs {
                                     value * crate::MICROSECOND,
                                     count,
                                 );
-                            } else {
-                                debug!("ignoring 0-filled statistic {}",
-                                    statistic.name());
                             }
                         }
                     }
