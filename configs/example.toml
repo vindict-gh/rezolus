@@ -508,3 +508,61 @@ bpf = true
 # 	90.0,
 # 	99.0,
 # ]
+
+# The zfs sampler provides telemetry for zfs filesystem operations.
+# Currently this sampler only provides telemetry from BPF. If you want to enable
+# this sampler, you should also enable BPF.
+[samplers.zfs]
+# Controls whether to use this sampler
+enabled = true
+
+# Enable BPF sampling
+bpf = true
+
+# Sampling interval, in milliseconds, for this sampler
+# interval = 1000
+
+# The set of exported statistics may be limited by specifying them, otherwise
+# the complete set of statistics will be exported.
+# statistics = [
+# 	"zfs/read/latency",
+# 	"zfs/write/latency",
+# ]
+
+# The set of exported percentiles can be controlled by specifying them here
+# percentiles = [
+# 	1.0,
+# 	10.0,
+# 	50.0,
+# 	90.0,
+# 	99.0,
+# ]
+
+# The zvol sampler provides telemetry for ZFS zvol operations.
+# Currently this sampler only provides telemetry from BPF. If you want to enable
+# this sampler, you should also enable BPF.
+[samplers.zvol]
+# Controls whether to use this sampler
+enabled = true
+
+# Enable BPF sampling
+bpf = true
+
+# Sampling interval, in milliseconds, for this sampler
+# interval = 1000
+
+# The set of exported statistics may be limited by specifying them, otherwise
+# the complete set of statistics will be exported.
+# statistics = [
+# 	"zvol/read/latency",
+# 	"zvol/write/latency",
+# ]
+
+# The set of exported percentiles can be controlled by specifying them here
+# percentiles = [
+# 	1.0,
+# 	10.0,
+# 	50.0,
+# 	90.0,
+# 	99.0,
+# ]
