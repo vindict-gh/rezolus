@@ -164,6 +164,7 @@ impl Zfs {
 
     #[cfg(feature = "bpf")]
     fn sample_bpf(&self) -> Result<(), std::io::Error> {
+        debug!("Sample bpf")
         if self.bpf_last.lock().unwrap().elapsed()
             >= Duration::from_secs(self.general_config().window() as u64)
         {
