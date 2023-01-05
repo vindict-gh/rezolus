@@ -144,8 +144,6 @@ impl Zfs {
 
                 // load + attach the kernel probes that are required to the bpf instance.
                 for probe in probes {
-                    debug!("found probe {} for zfs module", probe.name);
-
                     if self.common.config.fault_tolerant() {
                         if let Err(e) = probe.try_attach_to_bpf(&mut bpf) {
                             warn!("skipping {} with error: {}", probe.name, e);
@@ -171,11 +169,9 @@ impl Zfs {
                 let bpf = bpf.lock().unwrap();
                 let time = Instant::now();
                 for statistic in self.statistics.iter().filter(|s| s.bpf_table().is_some()) {
-                    debug!("sampling {}", statistic.name());
                     if let Ok(mut table) = (*bpf).inner.table(statistic.bpf_table().unwrap()) {
                         for (&value, &count) in &map_from_table(&mut table) {
                             if count > 0 {
-                                debug!("registering metrics {} ({})", statistic.name(), count);
                                 let _ = self.metrics().record_bucket(
                                     statistic,
                                     time,

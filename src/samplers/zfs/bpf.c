@@ -91,5 +91,3 @@ int trace_fsync_return(struct pt_regs *ctx)
 {
     return trace_return(ctx, OP_CODE_FSYNC);
 }
-
-
