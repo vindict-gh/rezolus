@@ -164,21 +164,18 @@ impl Zfs {
 
     #[cfg(feature = "bpf")]
     fn sample_bpf(&self) -> Result<(), std::io::Error> {
-        debug!("Sample bpf");
         if self.bpf_last.lock().unwrap().elapsed()
             >= Duration::from_secs(self.general_config().window() as u64)
         {
-            debug!("Sample bpf step 2");
             if let Some(ref bpf) = self.bpf {
-                debug!("Sample bpf step 3");
                 let bpf = bpf.lock().unwrap();
                 let time = Instant::now();
                 for statistic in self.statistics.iter().filter(|s| s.bpf_table().is_some()) {
-                    debug!("sampling {} in ZFS module", statistic.name());
+                    debug!("sampling {}", statistic.name());
                     if let Ok(mut table) = (*bpf).inner.table(statistic.bpf_table().unwrap()) {
                         for (&value, &count) in &map_from_table(&mut table) {
                             if count > 0 {
-                                debug!("registering metrics {} {}", count, statistic.name());
+                                debug!("registering metrics {} ({})", statistic.name(), count);
                                 let _ = self.metrics().record_bucket(
                                     statistic,
                                     time,
