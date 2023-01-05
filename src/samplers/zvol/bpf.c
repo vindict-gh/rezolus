@@ -27,8 +27,8 @@ typedef struct hash_value {
 BPF_HASH(start, u32, hash_value_t);
 
 // value_to_index2() gives us from 0-460 as the index
-BPF_HISTOGRAM(read, histo_value_t, 461);
-BPF_HISTOGRAM(write, histo_value_t, 461);
+BPF_HISTOGRAM(read, dist_key_t, 461);
+BPF_HISTOGRAM(write, dist_key_t, 461);
 
 VALUE_TO_INDEX2_FUNC
 
