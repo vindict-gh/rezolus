@@ -6,13 +6,18 @@
 // Based on: ../xfs/bpf.c
 
 #include <uapi/linux/ptrace.h>
-#include <linux/fs.h>
-#include <linux/sched.h>
+#include <sys/zvol_impl.h>
 
 #define OP_CODE_READ 0
 #define OP_CODE_WRITE 1
 
 #define ZFS_MAXNAMELEN 256
+
+typedef struct zv_request_stack {
+	zvol_state_t	*zv;
+	struct bio	*bio;
+	struct request *rq;
+} zv_request_t;
 
 typedef struct dist_key {
     char zvol_name[ZFS_MAXNAMELEN];
@@ -72,9 +77,9 @@ static int trace_return(struct pt_regs *ctx, const int op)
 
     // store into correct histogram for OP
     if (op == OP_CODE_READ) {
-        read.atomic_increment(key);
+        read.increment(key);
     } else if (op == OP_CODE_WRITE) {
-        write.atomic_increment(key);
+        write.increment(key);
     }
 
     // clear the start time
