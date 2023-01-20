@@ -12,14 +12,6 @@
 
 #define ZFS_MAXNAMELEN 256
 
-// XXX: Incomplete declaration of ZFS's internal zv_request_stack
-// We only care here about the pointer to zvol_state_t to access to the zvol name
-typedef struct zv_request_stack {
-	zvol_state_t	*zv;
-//	struct bio	*bio;
-//	struct request *rq;
-} zv_request_t;
-
 // XXX: Incomplete declaration of ZFS's internal zvol_state
 // We only care here about the pointer to zv_name to access to the zvol name
 typedef struct zvol_state {
@@ -44,17 +36,32 @@ typedef struct zvol_state {
 //	struct zvol_state_os	*zv_zso;
 } zvol_state_t;
 
-typedef struct dist_key {
+// XXX: Incomplete declaration of ZFS's internal zv_request_stack
+// We only care here about the pointer to zvol_state_t to access to the zvol name
+typedef struct zv_request_stack {
+	zvol_state_t	*zv;
+//	struct bio	*bio;
+//	struct request *rq;
+} zv_request_t;
+
+typedef struct dist_hist_key {
     char zvol_name[ZFS_MAXNAMELEN];
     u64 slot;
 } dist_key_t;
 
-typedef struct hash_value {
-    char zvol_name[ZFS_MAXNAMELEN];
-    u64 ts;
-} hash_value_t;
+typedef struct stats {
+    u64 min;
+    u64 max;
+    u64 count;
+    u64 total;
+} stats_t;
 
-BPF_HASH(start, u32, hash_value_t);
+//typedef struct hash_value {
+//    char zvol_name[ZFS_MAXNAMELEN];
+//    u64 ts;
+//} hash_value_t;
+
+BPF_HASH(start, u32, u64);
 
 // value_to_index2() gives us from 0-460 as the index
 BPF_HISTOGRAM(read, dist_key_t, 461);
@@ -68,40 +75,42 @@ int trace_entry(struct pt_regs *ctx, zv_request_t *zvr)
     u32 pid = pid_tgid >> 32;
     u32 tid = (u32)pid_tgid;
     u64 ts = bpf_ktime_get_ns();
-    struct hash_value value = {.ts = ts};
+
+    // struct hash_value value = {.ts = ts};
 
     // arguably we could also write zvr->zv.zv_name just as zvr->zv
     // per C standard definitions
-    bpf_probe_read_kernel(&value.zvol_name, sizeof(value.zvol_name), zvr->zv->zv_name);
+    // bpf_probe_read_kernel(&value.zvol_name, sizeof(value.zvol_name), zvr->zv->zv_name);
 
-    start.update(&tid, &value);
+    start.update(&tid, &ts);
     return 0;
 }
 
-static int trace_return(struct pt_regs *ctx, const int op)
+static int trace_return(struct pt_regs *ctx, zv_request_t *zvr, const int op)
 {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     u32 pid = pid_tgid >> 32;
     u32 tid = (u32)pid_tgid;
-    u64 cur_ts = bpf_ktime_get_ns()
 
     // lookup start time
-    hash_value_t *start_value = start.lookup(&tid);
+    u64 *ts = start.lookup(&tid);
 
     // skip events without start
-    if (start_value == NULL) {
+    if (ts == 0) {
         return 0;
     }
 
     // calculate latency in microseconds
-    u64 delta = (cur_ts - start_value->ts) / 1000;
+    u64 delta = (bpf_ktime_get_ns() - *ts) / 1000;
 
-    struct dist_key key = {};
-    __builtin_memcpy(&key.zvol_name, start_value->zvol_name, sizeof(key.zvol_name));
-    key.slot = bpf_log2l(delta);
+    dist_key_t key = {
+        .slot = bpf_log2l(delta),
+    };
+
+    bpf_probe_read_kernel(&key.zvol_name, sizeof(key.zvol_name), zvr->zv->zv_name);
 
     // calculate index
-    u64 index = value_to_index2(delta);
+    // u64 index = value_to_index2(delta);
 
     // store into correct histogram for OP
     if (op == OP_CODE_READ) {
@@ -116,13 +125,13 @@ static int trace_return(struct pt_regs *ctx, const int op)
     return 0;
 }
 
-int trace_read_return(struct pt_regs *ctx)
+int trace_read_return(struct pt_regs *ctx, zv_request_t *zvr)
 {
-    return trace_return(ctx, OP_CODE_READ);
+    return trace_return(ctx, zvr, OP_CODE_READ);
 }
 
-int trace_write_return(struct pt_regs *ctx)
+int trace_write_return(struct pt_regs *ctx, zv_request_t *zvr)
 {
-    return trace_return(ctx, OP_CODE_WRITE);
+    return trace_return(ctx, zvr, OP_CODE_WRITE);
 }
 
