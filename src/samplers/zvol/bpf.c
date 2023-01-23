@@ -56,12 +56,12 @@ typedef struct stats {
     u64 total;
 } stats_t;
 
-//typedef struct hash_value {
-//    char zvol_name[ZFS_MAXNAMELEN];
-//    u64 ts;
-//} hash_value_t;
+typedef struct hash_value {
+    char zvol_name[ZFS_MAXNAMELEN];
+    u64 ts;
+} hash_value_t;
 
-BPF_HASH(start, u32, u64);
+BPF_HASH(start, u32, hash_value_t);
 
 // value_to_index2() gives us from 0-460 as the index
 BPF_HISTOGRAM(read, dist_key_t, 461);
@@ -76,13 +76,14 @@ int trace_entry(struct pt_regs *ctx, zv_request_t *zvr)
     u32 tid = (u32)pid_tgid;
     u64 ts = bpf_ktime_get_ns();
 
-    // struct hash_value value = {.ts = ts};
+    struct hash_value value = {.ts = ts};
 
-    // arguably we could also write zvr->zv.zv_name just as zvr->zv
+    // arguably we could also write zvr->zv->zv_name just as zvr->zv
     // per C standard definitions
-    // bpf_probe_read_kernel(&value.zvol_name, sizeof(value.zvol_name), zvr->zv->zv_name);
+    bpf_probe_read_str(&value.zvol_name, ZFS_MAXNAMELEN, zvr->zv->zv_name);
 
-    start.update(&tid, &ts);
+    start.update(&tid, &value);
+    // zvol_name_hash.update(&tid, &buff);
     return 0;
 }
 
@@ -91,32 +92,30 @@ static int trace_return(struct pt_regs *ctx, zv_request_t *zvr, const int op)
     u64 pid_tgid = bpf_get_current_pid_tgid();
     u32 pid = pid_tgid >> 32;
     u32 tid = (u32)pid_tgid;
+    u64 delta = 0;
 
-    // lookup start time
-    u64 *ts = start.lookup(&tid);
+    //u32 tid = (u32)bpf_get_current_pid_tgid();
+    struct hash_value *value = start.lookup(&tid);
 
     // skip events without start
-    if (ts == 0) {
+    if (value == NULL) {
         return 0;
     }
 
     // calculate latency in microseconds
-    u64 delta = (bpf_ktime_get_ns() - *ts) / 1000;
+    delta = (bpf_ktime_get_ns() - value->ts) / 1000;
+    value->ts = bpf_log2l(delta);
 
-    dist_key_t key = {
-        .slot = bpf_log2l(delta),
-    };
-
-    bpf_probe_read_kernel(&key.zvol_name, sizeof(key.zvol_name), zvr->zv->zv_name);
+    //key = {.slot = bpf_log2l(delta)};
 
     // calculate index
     // u64 index = value_to_index2(delta);
 
     // store into correct histogram for OP
     if (op == OP_CODE_READ) {
-        read.increment(key);
+        read.increment(*value);
     } else if (op == OP_CODE_WRITE) {
-        write.increment(key);
+        write.increment(*value);
     }
 
     // clear the start time
