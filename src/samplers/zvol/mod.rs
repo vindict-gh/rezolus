@@ -20,6 +20,71 @@ mod stat;
 pub use config::*;
 pub use stat::*;
 
+#[cfg(feature = "bpf")]
+pub fn zvol_map_from_table(table: &mut bcc::table::Table)
+    -> std::collections::HashMap<&str, std::collections::HashMap<u64, u32>> {
+    use std::collections::HashMap;
+
+    let mut current = HashMap::new();
+
+    trace!("transferring data to userspace");
+    for (id, mut entry) in table.iter().enumerate() {
+        let mut key = [0; 264];
+        let mut ds_name = [0; 256];
+        let mut slot_key = [0; 8];
+
+        if key.len() != entry.key.len() {
+            // log and skip processing if the key length is unexpected
+            debug!(
+                "unexpected length of the entry's key, entry id: {} key length: {} (expected {})",
+                id,
+                entry.key.len(),
+                key.len() + ds_name.len()
+            );
+            continue;
+        }
+        key.copy_from_slice(&entry.key);
+        ds_name.copy_from_slice(&entry.key[..256]);
+        slot_key.copy_from_slice(&entry.key[256..]);
+
+        let slot_key = u64::from_ne_bytes(slot_key);
+        let ds_name_res = std::str::from_utf8(&ds_name);
+        if !ds_name_res.is_ok() {
+            debug!("invalid ds_name found");
+            continue;
+        }
+        let ds_name_str = ds_name_res.unwrap();
+
+        debug!("zvol {} at key {}", ds_name_str, slot_key);
+
+        let mut value = [0; 8];
+        if value.len() != entry.value.len() {
+            // log and skip processing if the value length is unexpected
+            debug!(
+                "unexpected length of the entry's value, entry id: {} value length: {}",
+                id,
+                entry.value.len()
+            );
+            continue;
+        }
+        value.copy_from_slice(&entry.value);
+        let value = u64::from_ne_bytes(value);
+
+        if !current.contains_key(&ds_name_str) {
+            let current_inner = HashMap::new();
+            current.insert(ds_name_str, current_inner);
+        }
+        if let Some(slot_key) = key_to_value(slot_key as u64) {
+            let mut inner = current.get_mut(&ds_name_str).unwrap();
+            inner.insert(slot_key, value as u32);
+        }
+
+        // clear the source counter
+        let _ = table.set(&mut entry.key, &mut [0_u8; 8]);
+    }
+    current
+}
+
 #[allow(dead_code)]
 pub struct ZVol {
     bpf: Option<Arc<Mutex<BPF>>>,
@@ -168,15 +233,17 @@ impl ZVol {
                 let time = Instant::now();
                 for statistic in self.statistics.iter().filter(|s| s.bpf_table().is_some()) {
                     if let Ok(mut table) = (*bpf).inner.table(statistic.bpf_table().unwrap()) {
-                        for (&value, &count) in &map_from_table(&mut table) {
-                            debug!("found {}, {}", value, count);
-                            if count > 0 {
-                                let _ = self.metrics().record_bucket(
-                                    statistic,
-                                    time,
-                                    value * crate::MICROSECOND,
-                                    count,
-                                );
+                        for (&zvol_name, &inner_map) in &zvol_map_from_table(&mut table) {
+                            for (&value, &count) in &inner_map {
+                                debug!("found {}: {} for {}", value, count, zvol_name);
+                                if count > 0 {
+                                    let _ = self.metrics().record_bucket(
+                                        statistic,
+                                        time,
+                                        value * crate::MICROSECOND,
+                                        count,
+                                    );
+                                }
                             }
                         }
                     }
