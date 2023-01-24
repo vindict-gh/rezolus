@@ -92,3 +92,25 @@ impl Statistic for ZVolStatistic {
         Source::Distribution
     }
 }
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+)]
+// #[serde(deny_unknown_fields, try_from = "&str", into = "&str")]
+// #[allow(clippy::enum_variant_names)]
+pub struct ZVolCustomStatistic {
+    pub full_name: String
+}
+
+
+impl Statistic for ZVolCustomStatistic {
+    fn name(&self) -> &str {
+        return self.full_name.as_str();
+    }
+
+    fn source(&self) -> Source { Source::Distribution }
+}

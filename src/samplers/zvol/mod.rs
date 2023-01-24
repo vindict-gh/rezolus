@@ -239,11 +239,18 @@ impl ZVol {
                 for statistic in self.statistics.iter().filter(|s| s.bpf_table().is_some()) {
                     if let Ok(mut table) = (*bpf).inner.table(statistic.bpf_table().unwrap()) {
                         for (zvol_name, inner_map) in zvol_map_from_table(&mut table) {
+                            // in order to stay in current rezolus workflow and automation
+                            // we need to modify statistic so that the name() function
+                            // return the zvol_name prefixed with the statistic actual name
+                            let custom_statistic = ZVolCustomStatistic {
+                                full_name: format!("{}/{}", statistic.name(), zvol_name),
+                            };
                             for (&value, &count) in &inner_map {
-                                debug!("found {}: {} for {}", value, count, zvol_name);
+                                debug!("found {} {}: {} for {}",
+                                    custom_statistic.name(), value, count, zvol_name);
                                 if count > 0 {
                                     let _ = self.metrics().record_bucket(
-                                        statistic,
+                                        &custom_statistic,
                                         time,
                                         value * crate::MICROSECOND,
                                         count,
