@@ -248,6 +248,43 @@ impl ZVol {
                             for (&value, &count) in &inner_map {
                                 debug!("found {} {}: {} for {}",
                                     custom_statistic.name(), value, count, zvol_name);
+                                // we need to register the statistics on the fly,
+                                // this is because we generate per zvol statisticd
+                                debug!("registering statistic {}", custom_statistic.name());
+                                self.common()
+                                    .metrics()
+                                    .add_output(&custom_statistic, Output::Reading);
+                                let percentiles = self.sampler_config().percentiles();
+                                if !percentiles.is_empty() {
+                                    if custom_statistic.source() == Source::Distribution {
+                                        self.common().metrics().add_summary(
+                                            &custom_statistic,
+                                            Summary::heatmap(
+                                                1_000_000_000,
+                                                2,
+                                                Duration::from_secs(
+                                                    self.common()
+                                                        .config()
+                                                        .general()
+                                                        .window()
+                                                        .try_into()
+                                                        .unwrap(),
+                                                ),
+                                                Duration::from_secs(1),
+                                            ),
+                                        );
+                                    } else {
+                                        self.common()
+                                            .metrics()
+                                            .add_summary(&custom_statistic, Summary::stream(self.samples()));
+                                    }
+                                }
+                                for percentile in percentiles {
+                                    debug!("Adding percentile {} for {}", *percentile, custom_statistic.name());
+                                    self.common()
+                                        .metrics()
+                                        .add_output(&custom_statistic, Output::Percentile(*percentile));
+                                }
                                 if count > 0 {
                                     let _ = self.metrics().record_bucket(
                                         &custom_statistic,
