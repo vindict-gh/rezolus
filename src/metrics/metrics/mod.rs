@@ -106,9 +106,12 @@ impl Metrics {
         count: u32,
     ) -> Result<(), MetricsError> {
         if statistic.source() == Source::Distribution {
+            debug!("record_bucket : {}", statistic.name());
             if let Some(channel) = self.channels.get(statistic.name()) {
+                debug!("record_bucket : {} CPAPT", statistic.name());
                 channel.record_bucket(time, value, count)
             } else {
+                debug!("record_bucket : {} CPT", statistic.name());
                 // statistic not registered
                 Err(MetricsError::NotRegistered)
             }

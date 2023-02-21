@@ -107,6 +107,7 @@ pub trait Sampler: Sized + Send {
     /// Register all the statistics
     fn register(&self) {
         for statistic in self.sampler_config().statistics() {
+            debug!("registering statistic {}", statistic.name());
             self.common()
                 .metrics()
                 .add_output(&statistic, Output::Reading);
@@ -136,6 +137,7 @@ pub trait Sampler: Sized + Send {
                 }
             }
             for percentile in percentiles {
+                debug!("Adding percentile {} for {}", *percentile, statistic.name());
                 self.common()
                     .metrics()
                     .add_output(&statistic, Output::Percentile(*percentile));
