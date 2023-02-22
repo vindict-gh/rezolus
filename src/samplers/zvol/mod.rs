@@ -296,7 +296,7 @@ impl ZVol {
                                 debug!("found {} {}: {} for {}", custom_statistic.name(), value, count, zvol_name);
                                 if count > 0 {
                                     let _ = self.metrics().record_bucket(
-                                        custom_statistic,
+                                        &custom_statistic,
                                         time,
                                         value * crate::MICROSECOND,
                                         count,
