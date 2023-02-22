@@ -231,15 +231,15 @@ impl ZVol {
 
     #[cfg(feature = "bpf")]
     fn register_zvolstatistic(&self, zvolstatistic: &ZVolCustomStatistic) {
-        debug!("registering statistic {}", custom_statistic.name());
+        debug!("registering statistic {}", zvolstatistic.name());
         self.common()
             .metrics()
-            .add_output(&custom_statistic, Output::Reading);
+            .add_output(zvolstatistic, Output::Reading);
         let percentiles = self.sampler_config().percentiles();
         if !percentiles.is_empty() {
-            if custom_statistic.source() == Source::Distribution {
+            if zvolstatistic.source() == Source::Distribution {
                 self.common().metrics().add_summary(
-                    &custom_statistic,
+                    zvolstatistic,
                     Summary::heatmap(
                         1_000_000_000,
                         2,
@@ -257,14 +257,14 @@ impl ZVol {
             } else {
                 self.common()
                     .metrics()
-                    .add_summary(&custom_statistic, Summary::stream(self.samples()));
+                    .add_summary(zvolstatistic, Summary::stream(self.samples()));
             }
         }
         for percentile in percentiles {
-            debug!("adding percentile {} for {}", *percentile, custom_statistic.name());
+            debug!("adding percentile {} for {}", *percentile, zvolstatistic.name());
             self.common()
                 .metrics()
-                .add_output(&custom_statistic, Output::Percentile(*percentile));
+                .add_output(zvolstatistic, Output::Percentile(*percentile));
         }
     }
 
@@ -296,7 +296,7 @@ impl ZVol {
                                 debug!("found {} {}: {} for {}", custom_statistic.name(), value, count, zvol_name);
                                 if count > 0 {
                                     let _ = self.metrics().record_bucket(
-                                        &custom_statistic,
+                                        custom_statistic,
                                         time,
                                         value * crate::MICROSECOND,
                                         count,
