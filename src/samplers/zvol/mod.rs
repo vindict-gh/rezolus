@@ -44,6 +44,7 @@ pub fn zvol_map_from_table(table: &mut bcc::table::Table)
             continue;
         }
         key.copy_from_slice(&entry.key);
+
         ds_name.copy_from_slice(&entry.key[..256]);
         slot_key.copy_from_slice(&entry.key[256..]);
 
@@ -55,9 +56,6 @@ pub fn zvol_map_from_table(table: &mut bcc::table::Table)
             continue;
         }
         let ds_name_str = ds_name_res.unwrap();
-
-        debug!("zvol {} at key {}", ds_name_str, slot_key);
-
         let mut value = [0; 8];
         if value.len() != entry.value.len() {
             // log and skip processing if the value length is unexpected
@@ -71,6 +69,8 @@ pub fn zvol_map_from_table(table: &mut bcc::table::Table)
         value.copy_from_slice(&entry.value);
         let value = u64::from_ne_bytes(value);
 
+        debug!("Found for {} : index {} = count {}", ds_name_str, slot_key, value);
+
         if !current.contains_key(&ds_name_str) {
             let mut current_inner = HashMap::new();
             if let Some(slot_key) = key_to_value(slot_key as u64) {
@@ -83,8 +83,7 @@ pub fn zvol_map_from_table(table: &mut bcc::table::Table)
                 inner.insert(slot_key, value as u32);
             }
         }
-
-
+        
         // clear the source counter
         let _ = table.set(&mut entry.key, &mut [0_u8; 8]);
     }
@@ -293,7 +292,7 @@ impl ZVol {
                             self.register_zvolstatistic(&custom_statistic);
 
                             for (&value, &count) in &inner_map {
-                                debug!("found {} {}: {} for {}", custom_statistic.name(), value, count, zvol_name);
+                                debug!("Got for {}: {} for {} micsecs", custom_statistic.name(), count, value);
                                 if count > 0 {
                                     let _ = self.metrics().record_bucket(
                                         &custom_statistic,

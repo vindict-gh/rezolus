@@ -83,7 +83,6 @@ int trace_entry(struct pt_regs *ctx, zv_request_t *zvr)
     bpf_probe_read_str(&value.zvol_name, ZFS_MAXNAMELEN, zvr->zv->zv_name);
 
     start.update(&tid, &value);
-    // zvol_name_hash.update(&tid, &buff);
     return 0;
 }
 
@@ -94,7 +93,6 @@ static int trace_return(struct pt_regs *ctx, zv_request_t *zvr, const int op)
     u32 tid = (u32)pid_tgid;
     u64 delta = 0;
 
-    //u32 tid = (u32)bpf_get_current_pid_tgid();
     struct hash_value *value = start.lookup(&tid);
 
     // skip events without start
@@ -106,11 +104,6 @@ static int trace_return(struct pt_regs *ctx, zv_request_t *zvr, const int op)
     delta = (bpf_ktime_get_ns() - value->ts) / 1000;
     value->ts = bpf_log2l(delta);
 
-    //key = {.slot = bpf_log2l(delta)};
-
-    // calculate index
-    // u64 index = value_to_index2(delta);
-
     // store into correct histogram for OP
     if (op == OP_CODE_READ) {
         read.increment(*value);
@@ -120,7 +113,6 @@ static int trace_return(struct pt_regs *ctx, zv_request_t *zvr, const int op)
 
     // clear the start time
     start.delete(&tid);
-
     return 0;
 }
 
