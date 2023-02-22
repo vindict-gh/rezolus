@@ -48,7 +48,8 @@ pub fn zvol_map_from_table(table: &mut bcc::table::Table)
         slot_key.copy_from_slice(&entry.key[256..]);
 
         let slot_key = u64::from_ne_bytes(slot_key);
-        let ds_name_res = String::from_utf8(ds_name);
+        let nul_range_end = ds_name.iter().position(|&c| c == b'\0').unwrap_or(ds_name.len());
+        let ds_name_res = String::from_utf8((&ds_name[0..nul_range_end]).to_vec());
         if !ds_name_res.is_ok() {
             debug!("invalid ds_name found");
             continue;
@@ -229,6 +230,45 @@ impl ZVol {
     }
 
     #[cfg(feature = "bpf")]
+    fn register_zvolstatistic(&self, zvolstatistic: &ZVolCustomStatistic) {
+        debug!("registering statistic {}", custom_statistic.name());
+        self.common()
+            .metrics()
+            .add_output(&custom_statistic, Output::Reading);
+        let percentiles = self.sampler_config().percentiles();
+        if !percentiles.is_empty() {
+            if custom_statistic.source() == Source::Distribution {
+                self.common().metrics().add_summary(
+                    &custom_statistic,
+                    Summary::heatmap(
+                        1_000_000_000,
+                        2,
+                        Duration::from_secs(
+                            self.common()
+                                .config()
+                                .general()
+                                .window()
+                                .try_into()
+                                .unwrap(),
+                        ),
+                        Duration::from_secs(1),
+                    ),
+                );
+            } else {
+                self.common()
+                    .metrics()
+                    .add_summary(&custom_statistic, Summary::stream(self.samples()));
+            }
+        }
+        for percentile in percentiles {
+            debug!("adding percentile {} for {}", *percentile, custom_statistic.name());
+            self.common()
+                .metrics()
+                .add_output(&custom_statistic, Output::Percentile(*percentile));
+        }
+    }
+
+    #[cfg(feature = "bpf")]
     fn sample_bpf(&self) -> Result<(), std::io::Error> {
         if self.bpf_last.lock().unwrap().elapsed()
             >= Duration::from_secs(self.general_config().window() as u64)
@@ -245,46 +285,15 @@ impl ZVol {
                             let custom_statistic = ZVolCustomStatistic {
                                 full_name: format!("{}/{}", statistic.name(), zvol_name),
                             };
+
+                            // we need to register the statistics on the fly,
+                            // this is because we generate per zvol statistics
+                            // we could try to check if the statistic is already registered
+                            // before trying to add
+                            self.register_zvolstatistic(&custom_statistic);
+
                             for (&value, &count) in &inner_map {
-                                debug!("found {} {}: {} for {}",
-                                    custom_statistic.name(), value, count, zvol_name);
-                                // we need to register the statistics on the fly,
-                                // this is because we generate per zvol statisticd
-                                debug!("registering statistic {}", custom_statistic.name());
-                                self.common()
-                                    .metrics()
-                                    .add_output(&custom_statistic, Output::Reading);
-                                let percentiles = self.sampler_config().percentiles();
-                                if !percentiles.is_empty() {
-                                    if custom_statistic.source() == Source::Distribution {
-                                        self.common().metrics().add_summary(
-                                            &custom_statistic,
-                                            Summary::heatmap(
-                                                1_000_000_000,
-                                                2,
-                                                Duration::from_secs(
-                                                    self.common()
-                                                        .config()
-                                                        .general()
-                                                        .window()
-                                                        .try_into()
-                                                        .unwrap(),
-                                                ),
-                                                Duration::from_secs(1),
-                                            ),
-                                        );
-                                    } else {
-                                        self.common()
-                                            .metrics()
-                                            .add_summary(&custom_statistic, Summary::stream(self.samples()));
-                                    }
-                                }
-                                for percentile in percentiles {
-                                    debug!("Adding percentile {} for {}", *percentile, custom_statistic.name());
-                                    self.common()
-                                        .metrics()
-                                        .add_output(&custom_statistic, Output::Percentile(*percentile));
-                                }
+                                debug!("found {} {}: {} for {}", custom_statistic.name(), value, count, zvol_name);
                                 if count > 0 {
                                     let _ = self.metrics().record_bucket(
                                         &custom_statistic,
