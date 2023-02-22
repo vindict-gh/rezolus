@@ -231,40 +231,45 @@ impl ZVol {
 
     #[cfg(feature = "bpf")]
     fn register_zvolstatistic(&self, zvolstatistic: &ZVolCustomStatistic) {
-        debug!("registering statistic {}", zvolstatistic.name());
-        self.common()
-            .metrics()
-            .add_output(zvolstatistic, Output::Reading);
-        let percentiles = self.sampler_config().percentiles();
-        if !percentiles.is_empty() {
-            if zvolstatistic.source() == Source::Distribution {
-                self.common().metrics().add_summary(
-                    zvolstatistic,
-                    Summary::heatmap(
-                        1_000_000_000,
-                        2,
-                        Duration::from_secs(
-                            self.common()
-                                .config()
-                                .general()
-                                .window()
-                                .try_into()
-                                .unwrap(),
-                        ),
-                        Duration::from_secs(1),
-                    ),
-                );
-            } else {
-                self.common()
-                    .metrics()
-                    .add_summary(zvolstatistic, Summary::stream(self.samples()));
-            }
-        }
-        for percentile in percentiles {
-            debug!("adding percentile {} for {}", *percentile, zvolstatistic.name());
+        if let Some(channel) = self.common().metrics().channels.get(zvolstatistic.name()) {
+            debug!("stat {} : already registered", zvolstatistic.name());
+        } else {
+            debug!("stat {} : Not Found", zvolstatistic.name());
+            debug!("registering statistic {}", zvolstatistic.name());
             self.common()
                 .metrics()
-                .add_output(zvolstatistic, Output::Percentile(*percentile));
+                .add_output(zvolstatistic, Output::Reading);
+            let percentiles = self.sampler_config().percentiles();
+            if !percentiles.is_empty() {
+                if zvolstatistic.source() == Source::Distribution {
+                    self.common().metrics().add_summary(
+                        zvolstatistic,
+                        Summary::heatmap(
+                            1_000_000_000,
+                            2,
+                            Duration::from_secs(
+                                self.common()
+                                    .config()
+                                    .general()
+                                    .window()
+                                    .try_into()
+                                    .unwrap(),
+                            ),
+                            Duration::from_secs(1),
+                        ),
+                    );
+                } else {
+                    self.common()
+                        .metrics()
+                        .add_summary(zvolstatistic, Summary::stream(self.samples()));
+                }
+            }
+            for percentile in percentiles {
+                debug!("adding percentile {} for {}", *percentile, zvolstatistic.name());
+                self.common()
+                    .metrics()
+                    .add_output(zvolstatistic, Output::Percentile(*percentile));
+            }
         }
     }
 
