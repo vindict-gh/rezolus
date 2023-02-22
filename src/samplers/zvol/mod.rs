@@ -231,10 +231,8 @@ impl ZVol {
 
     #[cfg(feature = "bpf")]
     fn register_zvolstatistic(&self, zvolstatistic: &ZVolCustomStatistic) {
-        if let Some(channel) = self.common().metrics().channels.get(zvolstatistic.name()) {
-            debug!("stat {} : already registered", zvolstatistic.name());
-        } else {
-            debug!("stat {} : Not Found", zvolstatistic.name());
+        let zvol_reading = self.common().metrics().reading(zvolstatistic);
+        if zvol_reading.is_err() {
             debug!("registering statistic {}", zvolstatistic.name());
             self.common()
                 .metrics()
@@ -265,7 +263,6 @@ impl ZVol {
                 }
             }
             for percentile in percentiles {
-                debug!("adding percentile {} for {}", *percentile, zvolstatistic.name());
                 self.common()
                     .metrics()
                     .add_output(zvolstatistic, Output::Percentile(*percentile));
@@ -293,8 +290,6 @@ impl ZVol {
 
                             // we need to register the statistics on the fly,
                             // this is because we generate per zvol statistics
-                            // we could try to check if the statistic is already registered
-                            // before trying to add
                             self.register_zvolstatistic(&custom_statistic);
 
                             for (&value, &count) in &inner_map {
