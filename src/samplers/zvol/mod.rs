@@ -82,7 +82,7 @@ pub fn zvol_map_from_table(table: &mut bcc::table::Table)
         }
         
         // clear the source counter
-        let _ = table.delete(&mut entry.key);
+        let _ = table.set(&mut entry.key, &mut [0_u8; 8]);
     }
     current
 }
@@ -295,7 +295,7 @@ impl ZVol {
                             self.register_zvolstatistic(&zpool_statistic);
 
                             for (&value, &count) in &inner_map {
-                                debug!("Got for {}: {} for {} micsecs", zvol_statistic.name(), count, value);
+                                debug!("Got for {}: {} for {} usecs", zvol_statistic.name(), count, value);
                                 if count > 0 {
                                     let _ = self.metrics().record_bucket(
                                         &zvol_statistic,

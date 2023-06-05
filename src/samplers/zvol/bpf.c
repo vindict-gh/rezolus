@@ -44,10 +44,6 @@ typedef struct zv_request_stack {
 //	struct request *rq;
 } zv_request_t;
 
-typedef struct dist_hist_key {
-    char zvol_name[ZFS_MAXNAMELEN];
-    u64 slot;
-} dist_key_t;
 
 typedef struct stats {
     u64 min;
