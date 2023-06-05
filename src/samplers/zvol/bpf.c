@@ -102,7 +102,7 @@ static int trace_return(struct pt_regs *ctx, zv_request_t *zvr, const int op)
 
     // calculate latency in microseconds
     delta = (bpf_ktime_get_ns() - value->ts) / 1000;
-    value->ts = bpf_log2l(delta);
+    value->ts = value_to_index2(delta);
 
     // store into correct histogram for OP
     if (op == OP_CODE_READ) {

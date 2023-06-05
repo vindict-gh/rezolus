@@ -27,10 +27,12 @@ pub fn zvol_map_from_table(table: &mut bcc::table::Table)
 
     let mut current = HashMap::new();
 
-    trace!("transferring data to userspace");
+    debug!("transferring data to userspace");
+    debug!("Found {} entries", table.iter().count());
+
     for (id, mut entry) in table.iter().enumerate() {
         let mut key = [0; 264];
-        let mut ds_name = vec![0; 256];
+        let mut ds_name = [0; 256];
         let mut slot_key = [0; 8];
 
         if key.len() != entry.key.len() {
@@ -43,19 +45,14 @@ pub fn zvol_map_from_table(table: &mut bcc::table::Table)
             );
             continue;
         }
-        key.copy_from_slice(&entry.key);
 
+        key.copy_from_slice(&entry.key);
         ds_name.copy_from_slice(&entry.key[..256]);
         slot_key.copy_from_slice(&entry.key[256..]);
 
         let slot_key = u64::from_ne_bytes(slot_key);
-        let nul_range_end = ds_name.iter().position(|&c| c == b'\0').unwrap_or(ds_name.len());
-        let ds_name_res = String::from_utf8((&ds_name[0..nul_range_end]).to_vec());
-        if !ds_name_res.is_ok() {
-            debug!("invalid ds_name found");
-            continue;
-        }
-        let ds_name_str = ds_name_res.unwrap();
+        let ds_name_str = parse_string(&ds_name);
+
         let mut value = [0; 8];
         if value.len() != entry.value.len() {
             // log and skip processing if the value length is unexpected
@@ -69,7 +66,7 @@ pub fn zvol_map_from_table(table: &mut bcc::table::Table)
         value.copy_from_slice(&entry.value);
         let value = u64::from_ne_bytes(value);
 
-        debug!("Found for {} : index {} = count {}", ds_name_str, slot_key, value);
+        debug!("Found for {} (idx:{}) : index {} = count {}", ds_name_str, id, slot_key, value);
 
         if !current.contains_key(&ds_name_str) {
             let mut current_inner = HashMap::new();
@@ -85,7 +82,7 @@ pub fn zvol_map_from_table(table: &mut bcc::table::Table)
         }
         
         // clear the source counter
-        let _ = table.set(&mut entry.key, &mut [0_u8; 8]);
+        let _ = table.delete(&mut entry.key);
     }
     current
 }
@@ -283,19 +280,31 @@ impl ZVol {
                             // in order to stay in current rezolus workflow and automation
                             // we need to modify statistic so that the name() function
                             // return the zvol_name prefixed with the statistic actual name
-                            let custom_statistic = ZVolCustomStatistic {
-                                full_name: format!("{}/{}", statistic.name(), zvol_name),
+                            let mut name_split = zvol_name.split('/');
+                            let pool_name = name_split.next().unwrap();
+                            let ds_name = name_split.last().unwrap();
+
+                            let zvol_statistic = ZVolCustomStatistic {
+                                full_name: format!("{}/{}", statistic.name(), ds_name),
+                            };
+                            let zpool_statistic = ZVolCustomStatistic {
+                                full_name: format!("{}/{}", statistic.name(), pool_name),
                             };
 
-                            // we need to register the statistics on the fly,
-                            // this is because we generate per zvol statistics
-                            self.register_zvolstatistic(&custom_statistic);
+                            self.register_zvolstatistic(&zvol_statistic);
+                            self.register_zvolstatistic(&zpool_statistic);
 
                             for (&value, &count) in &inner_map {
-                                debug!("Got for {}: {} for {} micsecs", custom_statistic.name(), count, value);
+                                debug!("Got for {}: {} for {} micsecs", zvol_statistic.name(), count, value);
                                 if count > 0 {
                                     let _ = self.metrics().record_bucket(
-                                        &custom_statistic,
+                                        &zvol_statistic,
+                                        time,
+                                        value * crate::MICROSECOND,
+                                        count,
+                                    );
+                                    let _ = self.metrics().record_bucket(
+                                        &zpool_statistic,
                                         time,
                                         value * crate::MICROSECOND,
                                         count,
